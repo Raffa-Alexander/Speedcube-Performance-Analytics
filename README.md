@@ -8,6 +8,9 @@ The ultimate goal is to achieve and sustain an average solve time below 8 second
 
 ![ezgif-3c4ab3774c2487ae](https://github.com/user-attachments/assets/aac119db-4de2-4152-b8c7-c43ed2ea5f65)
 
+Multiple plots were generated indluding (REV):
+<img width="1340" height="480" alt="image" src="https://github.com/user-attachments/assets/faf2f9a8-fab6-46c8-bea3-4e9e307d44bc" />
+
 # Objectives
 1. Analyze long-term performance trends
 2. Measure consistency and variance over time
