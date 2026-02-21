@@ -3,18 +3,28 @@ import pandas as pd
 import plotly.express as px
 import numpy as np
 
-# ----------------------------
-# CONFIG
-# ----------------------------
+##### Utilities #####
+
+def linear_regression(session_stats, x, y):
+    '''
+    Generates a line showing tendency with a slope according to density of points
+    '''
+    slope, intercept = np.polyfit(x, y, 1)
+    x_line = np.linspace(x.min(), x.max(), 100)
+    y_line = slope * x_line + intercept
+    return x_line, y_line
+
+##### CONFIG #####
+
 st.set_page_config(page_title="Cube Performance Dashboard", layout="wide")
 st.title("Speedcube Performance Dashboard")
 
 
 def parse_time_mmss(s):
-    """Converte strings mm:ss.xx para pd.Timedelta"""
+    """Converts strings mm:ss.xx to pd.Timedelta"""
     if pd.isna(s):
         return pd.Timedelta(0)
-    # separa minutos e segundos
+
     try:
         min_part, sec_part = s.split(":")
         total_seconds = int(min_part) * 60 + float(sec_part)
@@ -22,27 +32,22 @@ def parse_time_mmss(s):
     except:
         return pd.Timedelta(0)
 
-# ----------------------------
-# LOAD DATA
-# ----------------------------
+##### LOAD DATA #####
+
 @st.cache_data
 def load_data():
-    # ler CSV com separador correto
+    '''
+    Loads data from "data.csv" to variable "df". 
+    '''
     df = pd.read_csv("data.csv", sep=";", engine="python", encoding="utf-8-sig")
-    
-    # padronizar nomes
     df.columns = df.columns.str.strip().str.lower()
-    
-    # conversão de Date
+
     df["date"] = pd.to_datetime(df["date"], dayfirst=True)
-    
-    # conversão de Time
     df["time"] = df["time"].astype(str).apply(parse_time_mmss)
     df["time_sec"] = df["time"].dt.total_seconds()
     
     df = df.sort_values("date")
     
-    # features derivadas
     df["year"] = df["date"].dt.year
     df["hour"] = df["date"].dt.hour
     df["weekday"] = df["date"].dt.day_name()
@@ -55,9 +60,8 @@ def load_data():
 
 df = load_data()
 
-# ----------------------------
-# SIDEBAR FILTER
-# ----------------------------
+##### SIDEBAR FILTER #####
+
 st.sidebar.header("Filters")
 
 min_date = df["date"].min().date()
@@ -73,9 +77,8 @@ if len(date_range) == 2:
     mask = (df["date"].dt.date >= start_date) & (df["date"].dt.date <= end_date)
     df = df.loc[mask]
 
-# ----------------------------
-# METRICS
-# ----------------------------
+##### METRICS #####
+
 col1, col2, col3, col4 = st.columns(4)
 
 col1.metric("Total Solves", len(df))
@@ -85,15 +88,16 @@ col4.metric("Standard Deviation", f"{df['time_sec'].std():.2f}")
 
 st.divider()
 
+######################
+##### DASHBOARDS #####
+#####################
 
-# ----------------------------
-# MOVING AVERAGE
-# ----------------------------
+##### MOVING AVERAGE #####
 window = st.sidebar.slider("Moving Average Window", 1, 200, 150)
 
 df["ma"] = df["time_sec"].rolling(window).mean()
 
-# gráfico base com pontos para os tempos originais
+
 fig1 = px.scatter(
     df,
     x="date",
@@ -101,25 +105,25 @@ fig1 = px.scatter(
     title="Solve Times Over Time",
     labels={"time_sec": "Time (s)", "date": "Date"},
     render_mode="webgl"
-)
+) # Plot all times as points
 
-# adicionar MA como linha
 fig1.add_scattergl(
     x=df["date"],
     y=df["ma"],
     mode="lines",
     name=f"MA{window}",
     line=dict(color="#fc8d62", width=3)
-)
+) # Plots MA filtered times as line
+
 fig1.update_traces(marker=dict(color='blue', size=2, opacity=0.5), selector=dict(mode='markers'))
 st.plotly_chart(fig1, use_container_width=True)
 
-# ----------------------------
-# LINE: HISTOGRAM + SUB X (MESMA LINHA)
-# ----------------------------
+
+##### LINE: HISTOGRAM + SUB X (MESMA LINHA) #####
+
 col_dist, col_subx = st.columns(2)
 
-# HISTOGRAM OF TIME WINDOWS (9.00-9.99, 10.00-10.99, 11.00-11.99, ...)
+##### HISTOGRAM OF TIME WINDOWS (9.00-9.99, 10.00-10.99, 11.00-11.99, ...) #####
 
 with col_dist:
     st.subheader("Time Distribution")
@@ -133,7 +137,7 @@ with col_dist:
     fig3.update_xaxes(dtick=1)   
     st.plotly_chart(fig3, use_container_width=True) 
 
-# SUB X
+##### SUB X #####
 with col_subx:
     st.subheader("Sub-X Times")
 
@@ -160,18 +164,14 @@ with col_subx:
     fig4.update_traces(textposition="outside")
     st.plotly_chart(fig4, use_container_width=True)
 
-# ----------------------------
+
 # LINE: SUB-X PROBABILITY OVER TIME
-# ----------------------------
+
 st.subheader("Rolling Probability of Sub-X")
 
 sub_x_value = st.sidebar.slider("Select X (seconds)", 5.0, 15.0, 8.0, step=0.1)
-
-# criar coluna booleana
 df["is_sub_x"] = df["time_sec"] < sub_x_value
-
 prob_window = st.sidebar.slider("Probability Window", 50, 2000, 500) # rolling probability
-
 df["sub_x_prob"] = df["is_sub_x"].rolling(prob_window).mean()
 
 fig_prob = px.line(
@@ -185,15 +185,14 @@ fig_prob.update_traces(line=dict(color="#2a9d8f", width=3))
 fig_prob.update_layout(yaxis=dict(range=[0, 1]))
 st.plotly_chart(fig_prob, use_container_width=True)
 
-# ---------------------
+
 # LINE: IMPACT OF TIME
-# ---------------------
 
 st.subheader("Impact of time and frequency on performance")
 
 col_heatmap, col_years = st.columns(2)
 
-# HEATMAP 
+##### HEATMAP #####
 with col_heatmap:
 
     weekday_order = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
@@ -228,7 +227,7 @@ with col_heatmap:
     st.plotly_chart(fig_heat, use_container_width=True)
 
 
-# SOLVES & PERFORMANCE PER YEAR
+##### SOLVES & PERFORMANCE PER YEAR #####
 with col_years:
 
     yearly_stats = (
@@ -241,12 +240,10 @@ with col_years:
         .sort_values("year")
     )
 
-    # calcular melhoria percentual vs ano anterior
     yearly_stats["improvement_pct"] = (
         yearly_stats["median_time"].pct_change() * -100
-    )
+    ) # Compare percentual improvament againts last year
 
-    # gráfico com duas escalas
     fig_year = px.bar(
         yearly_stats,
         x="year",
@@ -278,25 +275,21 @@ with col_years:
     st.plotly_chart(fig_year, use_container_width=True)
 
 
+##### LINE: SESSION SIZE IMPACT #####
 
-
-# ----------------------------
-# SESSION SIZE IMPACT (Analysis A)
-# ----------------------------
 st.subheader("Impact of Session Size on Performance")
 
 col_ses_mean, col_ses_prob = st.columns(2)
 
 with col_ses_mean:
+    ##### SESSION SIZE PLOTS #####
 
-    # slider para definir Sub-X usado na análise
     analysis_sub_x = st.sidebar.slider(
         "Session Analysis Sub-X (seconds)",
         5.0, 15.0, 8.0, step=0.1,
         key="session_analysis_subx"
     )
 
-    # agregação por sessão
     session_stats = (
         df.groupby("session_id")
         .agg(
@@ -306,33 +299,15 @@ with col_ses_mean:
         .reset_index()
     )
 
-    # calcular probabilidade Sub-X por sessão
     subx_per_session = (
         df.assign(is_sub=lambda x: x["time_sec"] < analysis_sub_x)
         .groupby("session_id")["is_sub"]
         .mean()
         .reset_index(name="session_subx_prob")
     )
-
-    # juntar
-    session_stats = session_stats.merge(
-        subx_per_session,
-        on="session_id"
-    )
-
-    # remover sessões muito pequenas (opcional mas recomendado)
-    min_session_size = st.sidebar.slider(
-        "Minimum Session Size",
-        5, 100, 15
-    )
-
-    session_stats = session_stats[
-        session_stats["session_size"] >= min_session_size
-    ]
-
-    # ----------------------------
-    # Scatter - Mean Time
-    # ----------------------------
+    session_stats = session_stats.merge(subx_per_session, on="session_id")
+    min_session_size = st.sidebar.slider("Minimum Session Size", 5, 100, 15)
+    session_stats = session_stats[session_stats["session_size"] >= min_session_size]
 
     fig_session_mean = px.scatter(
         session_stats,
@@ -345,15 +320,8 @@ with col_ses_mean:
         }
     )
 
-    # regressão linear manual
     if len(session_stats) > 1:
-        x = session_stats["session_size"]
-        y = session_stats["session_mean"]
-
-        slope, intercept = np.polyfit(x, y, 1)
-        x_line = np.linspace(x.min(), x.max(), 100)
-        y_line = slope * x_line + intercept
-
+        x_line, y_line = linear_regression(session_stats, session_stats["session_size"], session_stats["session_mean"])
         fig_session_mean.add_scatter(
             x=x_line,
             y=y_line,
@@ -361,14 +329,11 @@ with col_ses_mean:
             name="Linear Trend",
             line=dict(color="red", width=3)
         )
-
     st.plotly_chart(fig_session_mean, use_container_width=True)
 
 
-# ----------------------------
-# Scatter - Sub-X Probability
-# ----------------------------
 with col_ses_prob:
+    ##### SESSION SIZE PROBABILITY PLOTS #####
 
     fig_session_subx = px.scatter(
         session_stats,
@@ -385,15 +350,8 @@ with col_ses_prob:
         yaxis=dict(range=[0, 1])
     )
 
-    # regressão linear manual
     if len(session_stats) > 1:
-        x = session_stats["session_size"]
-        y = session_stats["session_subx_prob"]
-
-        slope2, intercept2 = np.polyfit(x, y, 1)
-        x_line = np.linspace(x.min(), x.max(), 100)
-        y_line = slope2 * x_line + intercept2
-
+        x_line, y_line = linear_regression(session_stats, session_stats["session_size"], session_stats["session_subx_prob"])
         fig_session_subx.add_scatter(
             x=x_line,
             y=y_line,
@@ -401,5 +359,4 @@ with col_ses_prob:
             name="Linear Trend",
             line=dict(color="red", width=3)
         )
-
     st.plotly_chart(fig_session_subx, use_container_width=True)
