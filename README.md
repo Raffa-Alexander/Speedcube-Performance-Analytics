@@ -7,7 +7,6 @@ This project uses dynamic dashboards written in Python to analyze long-term perf
 The ultimate goal is to achieve and sustain an average solve time below 8 seconds.
 
 <br clear="right">
-<br>
 
 Users can dynamically select date ranges, adjust moving average windows, define Sub-X thresholds, and filter minimum session sizes. All visualizations update in real time, enabling exploratory analysis of performance patterns.
 <p align="center"><img width="1200" alt="image" src="https://github.com/user-attachments/assets/cdc70c77-6673-4dd1-a257-314e8350e31f" /></p>
