@@ -46,6 +46,10 @@ def load_data():
     df["year"] = df["date"].dt.year
     df["hour"] = df["date"].dt.hour
     df["weekday"] = df["date"].dt.day_name()
+
+    df["time_diff"] = df["date"].diff().dt.total_seconds()
+    df["new_session"] = df["time_diff"] > 300
+    df["session_id"] = df["new_session"].cumsum()
     
     return df
 
@@ -85,7 +89,7 @@ st.divider()
 # ----------------------------
 # MOVING AVERAGE
 # ----------------------------
-window = st.sidebar.slider("Moving Average Window", 1, 200, 100)
+window = st.sidebar.slider("Moving Average Window", 1, 200, 150)
 
 df["ma"] = df["time_sec"].rolling(window).mean()
 
@@ -124,44 +128,84 @@ sub_x = df.groupby
 fig2 = px.bar(hour_stats, x="hour", y="time_sec", title="Average Time by Hour")
 st.plotly_chart(fig2, use_container_width=True)
 
+
+
+# ----------------------------
+# DISTRIBUTION + SUB X (MESMA LINHA)
+# ----------------------------
+col_dist, col_subx = st.columns(2)
+
 # ----------------------------
 # DISTRIBUTION
 # ----------------------------
-st.subheader("Time Distribution")
 
-fig3 = px.histogram(df, x="time_sec", nbins=50, title="Histogram of Solve Times")
-st.plotly_chart(fig3, use_container_width=True)
+with col_dist:
+    st.subheader("Time Distribution")
+
+    fig3 = px.histogram(df, x="time_sec", nbins=50, title="Histogram of Solve Times")
+    st.plotly_chart(fig3, use_container_width=True)
 
 # ---------------------------- 
 # SUB X
 # ----------------------------
-st.subheader("Sub-X Times")
+with col_subx:
+    st.subheader("Sub-X Times")
 
-# valores de referência (6s a 15s, você pode mudar)
-sub_x_values = range(6, 16)  
+    # valores de referência (6s a 15s, você pode mudar)
+    sub_x_values = range(6, 16)  
 
-# contar quantos solves ficaram abaixo de cada valor
-sub_x_counts = [ (df["time_sec"] < x).sum() for x in sub_x_values ]
+    # contar quantos solves ficaram abaixo de cada valor
+    sub_x_counts = [ (df["time_sec"] < x).sum() for x in sub_x_values ]
 
-# criar labels tipo "Sub 6s", "Sub 7s", ...
-sub_x_labels = [f"Sub {x}s" for x in sub_x_values]
+    # criar labels tipo "Sub 6s", "Sub 7s", ...
+    sub_x_labels = [f"Sub {x}s" for x in sub_x_values]
 
-sub_x_df = pd.DataFrame({
-    "sub_x": sub_x_labels,  # usar labels como eixo X
-    "amount": sub_x_counts
-})
+    sub_x_df = pd.DataFrame({
+        "sub_x": sub_x_labels,  # usar labels como eixo X
+        "amount": sub_x_counts
+    })
 
-# gráfico de barras com texto em cima da barra
-fig4 = px.bar(
-    sub_x_df,
-    x="sub_x",
-    y="amount",
-    text="amount",  # mostra valor acima de cada barra
-    title="Sub-X Solves",
-    labels={"sub_x": "", "amount": "Number of Solves"}  # remove label do eixo X
+    # gráfico de barras com texto em cima da barra
+    fig4 = px.bar(
+        sub_x_df,
+        x="sub_x",
+        y="amount",
+        text="amount",  # mostra valor acima de cada barra
+        title="Sub-X Solves",
+        labels={"sub_x": "", "amount": "Number of Solves"}  # remove label do eixo X
+    )
+
+    # opcional: melhorar estética do texto
+    fig4.update_traces(textposition="outside", marker_color="skyblue")
+
+    st.plotly_chart(fig4, use_container_width=True)
+
+
+# ----------------------------
+# SUB-X PROBABILITY OVER TIME
+# ----------------------------
+st.subheader("Rolling Probability of Sub-X")
+
+sub_x_value = st.sidebar.slider("Select X (seconds)", 5.0, 15.0, 8.0, step=0.1)
+
+# criar coluna booleana
+df["is_sub_x"] = df["time_sec"] < sub_x_value
+
+# rolling probability
+prob_window = st.sidebar.slider("Probability Window", 50, 2000, 500)
+
+df["sub_x_prob"] = df["is_sub_x"].rolling(prob_window).mean()
+
+fig_prob = px.line(
+    df,
+    x="date",
+    y="sub_x_prob",
+    title=f"Rolling Probability of Sub-{sub_x_value}s",
+    labels={"sub_x_prob": "Probability", "date": "Date"}
 )
 
-# opcional: melhorar estética do texto
-fig4.update_traces(textposition="outside", marker_color="skyblue")
+fig_prob.update_traces(line=dict(color="#2a9d8f", width=3))
 
-st.plotly_chart(fig4, use_container_width=True)
+fig_prob.update_layout(yaxis=dict(range=[0, 1]))
+
+st.plotly_chart(fig_prob, use_container_width=True)
