@@ -1,11 +1,12 @@
 # Speedcube-Performance-Analytics
 
+<img align="right" width="135" src="https://github.com/user-attachments/assets/aac119db-4de2-4152-b8c7-c43ed2ea5f65">
 Since 2018 I have solved the Rubik's Cube over 70,000 times and kept tracking each result with a timing software.
 
 This project uses dynamic dashboards written in Python to analyze long-term performance trends, and statistical patterns in order to understand and improve my solving efficiency.
 The ultimate goal is to achieve and sustain an average solve time below 8 seconds.
 
-![ezgif-3c4ab3774c2487ae](https://github.com/user-attachments/assets/aac119db-4de2-4152-b8c7-c43ed2ea5f65)
+<br clear="right">
 
 # Objectives
 1. Analyze long-term performance trends
@@ -32,7 +33,6 @@ The ultimate goal is to achieve and sustain an average solve time below 8 second
 # Why This Project?
 This project combines:
 - Data analysis
-- Statistical modeling
 - Behavioral performance analysis
 - Software development
 - It transforms a long-term personal dataset into a quantitative performance study.
