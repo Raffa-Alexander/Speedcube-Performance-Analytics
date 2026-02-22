@@ -11,7 +11,7 @@ Link to access it: https://speedcube-performance-analytics-kaunryakgyjudrxiqzznv
 <p align="center"><img width="1200" alt="image" src="https://github.com/user-attachments/assets/cdc70c77-6673-4dd1-a257-314e8350e31f" /></p>
 
 # How to use
-Anyone who wants to measure performance can dowonload this program and substitute the "data.csv" file with their own. It has two columns separated by **semicolon**: "date" with the format "dd/mm/yyyy hh:mm" and "time": "hh:mm.ss". The list of solves doesn't need to be sorted.
+Anyone who wants to measure performance can dowonload this program and substitute the "data.csv" file with their own. It has two columns separated by **semicolon**: "date" with the format "dd/mm/yyyy hh:mm" and "time": "hh:mm.ss". The list of solves doesn't need to be sorted. Be sure following libraries are installed in your computer: streamlit, pandas, plotly. Use the "start.bat" file to run the program.
 
 # Objectives
 1. Analyze long-term performance trends
