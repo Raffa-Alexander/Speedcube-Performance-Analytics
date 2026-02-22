@@ -5,7 +5,9 @@ Since 2018 I have solved the Rubik's Cube over 70,000 times and kept tracking ea
 
 This project uses dynamic dashboards written in Python to analyze long-term performance trends, and statistical patterns in order to understand and improve solving efficiency.
 
-Users can dynamically select date ranges, adjust moving average windows, define Sub-X thresholds, and filter minimum session sizes. All visualizations update in real time, enabling exploratory analysis of performance patterns.
+Users can dynamically select date ranges, adjust moving average windows, define Sub-X thresholds, and filter minimum session sizes. All visualizations update in real time, enabling exploratory analysis of performance patterns. 
+
+Link to access it: https://speedcube-performance-analytics-kaunryakgyjudrxiqzznvj.streamlit.app/
 <p align="center"><img width="1200" alt="image" src="https://github.com/user-attachments/assets/cdc70c77-6673-4dd1-a257-314e8350e31f" /></p>
 
 # How to use
