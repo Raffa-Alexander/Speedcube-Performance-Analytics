@@ -16,6 +16,10 @@ def linear_regression(session_stats, x, y):
 
 ##### CONFIG #####
 
+COLOR_BARS = "#3691E0"
+COLOR_SCATTERS = "#3691E0"
+COLOR_LINES = "#E17070"
+
 st.set_page_config(page_title="Cube Performance Dashboard", layout="wide")
 st.title("Speedcube Performance Dashboard")
 
@@ -112,22 +116,21 @@ fig1.add_scattergl(
     y=df["ma"],
     mode="lines",
     name=f"MA{window}",
-    line=dict(color="#fc8d62", width=3)
+    line=dict(color=COLOR_LINES, width=3)
 ) # Plots MA filtered times as line
 
-fig1.update_traces(marker=dict(color='blue', size=2, opacity=0.5), selector=dict(mode='markers'))
+fig1.update_traces(marker=dict(color=COLOR_SCATTERS, size=3, opacity=0.5), selector=dict(mode='markers'))
 st.plotly_chart(fig1, use_container_width=True)
 
 
 ##### LINE: HISTOGRAM + SUB X (MESMA LINHA) #####
 
+st.subheader("Time Distribution")
 col_dist, col_subx = st.columns(2)
 
 ##### HISTOGRAM OF TIME WINDOWS (9.00-9.99, 10.00-10.99, 11.00-11.99, ...) #####
 
 with col_dist:
-    st.subheader("Time Distribution")
-
     fig3 = px.histogram(
         df, 
         x="time_sec", 
@@ -135,12 +138,12 @@ with col_dist:
         title="Histogram of Solve Times"
     )
     fig3.update_xaxes(dtick=1)   
+    fig3.update_traces(marker=dict(color=COLOR_BARS))
+
     st.plotly_chart(fig3, use_container_width=True) 
 
 ##### SUB X #####
 with col_subx:
-    st.subheader("Sub-X Times")
-
     sub_x_values = range(6, 16)
     total_solves = len(df) 
     sub_x_counts = [(df["time_sec"] < x).sum() for x in sub_x_values]
@@ -160,36 +163,15 @@ with col_subx:
         title="Sub-X Solves",
         labels={"sub_x": "", "amount": "Number of Solves"}
     )
+    fig4.update_traces(marker=dict(color=COLOR_BARS))
 
     fig4.update_traces(textposition="outside")
     st.plotly_chart(fig4, use_container_width=True)
 
 
-# LINE: SUB-X PROBABILITY OVER TIME
-
-st.subheader("Rolling Probability of Sub-X")
-
-sub_x_value = st.sidebar.slider("Select X (seconds)", 5.0, 15.0, 8.0, step=0.1)
-df["is_sub_x"] = df["time_sec"] < sub_x_value
-prob_window = st.sidebar.slider("Probability Window", 50, 2000, 500) # rolling probability
-df["sub_x_prob"] = df["is_sub_x"].rolling(prob_window).mean()
-
-fig_prob = px.line(
-    df,
-    x="date",
-    y="sub_x_prob",
-    title=f"Rolling Probability of Sub-{sub_x_value}s",
-    labels={"sub_x_prob": "Probability", "date": "Date"}
-)
-fig_prob.update_traces(line=dict(color="#2a9d8f", width=3))
-fig_prob.update_layout(yaxis=dict(range=[0, 1]))
-st.plotly_chart(fig_prob, use_container_width=True)
-
-
-# LINE: IMPACT OF TIME
+##### LINE: IMPACT OF TIME #####
 
 st.subheader("Impact of time and frequency on performance")
-
 col_heatmap, col_years = st.columns(2)
 
 ##### HEATMAP #####
@@ -227,7 +209,7 @@ with col_heatmap:
     st.plotly_chart(fig_heat, use_container_width=True)
 
 
-##### SOLVES & PERFORMANCE PER YEAR #####
+##### SOLVES AND PERFORMANCE PER YEAR #####
 with col_years:
 
     yearly_stats = (
@@ -252,8 +234,7 @@ with col_years:
         title="Annual Solves and Median Performance",
         labels={"year": "Year", "solves": "Number of Solves"}
     )
-
-    fig_year.update_traces(textposition="outside")
+    fig_year.update_traces(marker=dict(color=COLOR_BARS), textposition="outside")
 
     # adicionar linha da mediana
     fig_year.add_scatter(
@@ -261,7 +242,8 @@ with col_years:
         y=yearly_stats["median_time"],
         mode="lines+markers",
         name="Median Time (s)",
-        yaxis="y2"
+        yaxis="y2",
+        line=dict(color=COLOR_LINES, width=3)
     )
 
     fig_year.update_layout(
@@ -319,6 +301,7 @@ with col_ses_mean:
             "session_mean": "Mean Time (s)"
         }
     )
+    fig_session_mean.update_traces(marker=dict(color=COLOR_SCATTERS))
 
     if len(session_stats) > 1:
         x_line, y_line = linear_regression(session_stats, session_stats["session_size"], session_stats["session_mean"])
@@ -327,7 +310,7 @@ with col_ses_mean:
             y=y_line,
             mode="lines",
             name="Linear Trend",
-            line=dict(color="red", width=3)
+            line=dict(color=COLOR_LINES, width=3)
         )
     st.plotly_chart(fig_session_mean, use_container_width=True)
 
@@ -345,7 +328,7 @@ with col_ses_prob:
             "session_subx_prob": "Probability"
         }
     )
-
+    fig_session_subx.update_traces(marker=dict(color=COLOR_SCATTERS))
     fig_session_subx.update_layout(
         yaxis=dict(range=[0, 1])
     )
@@ -357,6 +340,27 @@ with col_ses_prob:
             y=y_line,
             mode="lines",
             name="Linear Trend",
-            line=dict(color="red", width=3)
+            line=dict(color=COLOR_LINES, width=3)
         )
     st.plotly_chart(fig_session_subx, use_container_width=True)
+
+
+##### LINE: SUB-X PROBABILITY OVER TIME #####
+
+st.subheader("Rolling Probability of Sub-X")
+
+sub_x_value = st.sidebar.slider("Select X (seconds)", 5.0, 15.0, 8.0, step=0.1)
+df["is_sub_x"] = df["time_sec"] < sub_x_value
+prob_window = st.sidebar.slider("Probability Window", 50, 2000, 500) # rolling probability
+df["sub_x_prob"] = df["is_sub_x"].rolling(prob_window).mean()
+
+fig_prob = px.line(
+    df,
+    x="date",
+    y="sub_x_prob",
+    title=f"Rolling Probability of Sub-{sub_x_value}s",
+    labels={"sub_x_prob": "Probability", "date": "Date"}
+)
+fig_prob.update_traces(line=dict(color=COLOR_LINES, width=3))
+fig_prob.update_layout(yaxis=dict(range=[0, 1]))
+st.plotly_chart(fig_prob, use_container_width=True)
