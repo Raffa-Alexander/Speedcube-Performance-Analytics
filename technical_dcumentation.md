@@ -85,20 +85,21 @@ Two heatmaps are generated:
 - **Same-week median heatmap**: Displays the median solve time within the same week as a function of weekly volume and session fragmentation.
 This reveals how training structure correlates with concurrent performance.
 
-- **Next-week median heatmap**: Displays the median solve time of the following week (T+1), conditioned on the structural characteristics of week T.
-This provides a short-term temporal analysis of whether weekly training structure is associated with subsequent performance changes.
+- **Next-week median heatmap**: Displays the improvement $\Delta$ of the following week (T+1), conditioned on the structural characteristics of week T.
+This provides a short-term temporal analysis of whether weekly training structure is associated with subsequent performance changes. 
+$$\Delta=\frac{MedianNextWeek-MedianWeek}{MedianWeek}\cdot 100. \quad$$
+ $\Delta$ is calculated that way because a percentual improvement is more relevant than an absolute improvement, since for smaller times every improvement gets harder.
 
 **Together, these visualizations allow evaluation of whether higher volume, increased session fragmentation, or their interaction is associated with improved immediate or short-term performance outcomes.**
-<p center><img width="850"  alt="image" src="https://github.com/user-attachments/assets/490fc895-deab-49d9-824e-213b6050cc04" /></p>
+<p align='center'><img width="900"  alt="image" src="https://github.com/user-attachments/assets/5cb0802a-9627-4d30-a8e1-88ecf3d8823b" /></p>
 
 
 # 8. Case Study: Personal Dataset
-it was applied to a dataset of 70,000+ speedcubing solves recorded since 2018.
+A dataset of 70,000+ speedcubing solves recorded since 2018 (my solves) was applied to the system.
 
 
 ## Conclusion
-Frequency, solves per year
-Session size
+The Weekly Training Structure Heatmaps show better performance at 
 
 # 9. Limitations
 
