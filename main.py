@@ -202,7 +202,7 @@ with col_heatmap:
 
     fig_heat = px.imshow(
         pivot_table,
-        color_continuous_scale="RdYlGn_r",
+        color_continuous_scale="Blues",#"RdYlGn_r",
         labels=dict(color="Average Time (s)"),
         aspect="auto",
         title="Heatmap",
@@ -407,18 +407,75 @@ weekly = weekly[weekly["weekly_volume"] > 0]
 # Remove last week (no next week)
 weekly_valid = weekly.dropna(subset=["next_week_median"]).copy()
 
-# --- Create Quantile Bins ---
+# --- Percentage improvement (Next Week vs Current Week) ---
+weekly_valid["delta_pct_next_week"] = (
+    (weekly_valid["next_week_median"] - weekly_valid["weekly_median"])
+    / weekly_valid["weekly_median"]
+) * 100
+
+# --- Create Quantile Bins with Explicit Ranges ---
+
+# Volume quantiles
+volume_cuts, volume_bins = pd.qcut(
+    weekly_valid["weekly_volume"],
+    q=4,
+    retbins=True,
+    duplicates="drop"
+)
+
+volume_labels = []
+for i in range(len(volume_bins) - 1):
+    low = int(np.floor(volume_bins[i]))
+    high = int(np.ceil(volume_bins[i + 1]))
+    volume_labels.append(f"Q{i+1}\n{low}–{high}")
+
 weekly_valid["volume_bin"] = pd.qcut(
     weekly_valid["weekly_volume"],
     q=4,
-    labels=["Q1 Low", "Q2 Mid-Low", "Q3 Mid-High", "Q4 High"]
+    labels=volume_labels,
+    duplicates="drop"
 )
+
+# Session fragmentation quantiles
+session_cuts, session_bins = pd.qcut(
+    weekly_valid["n_sessions"],
+    q=3,
+    retbins=True,
+    duplicates="drop"
+)
+
+session_labels = []
+frag_names = ["Low Frag", "Mid Frag", "High Frag"]
+
+for i in range(len(session_bins) - 1):
+    low = int(np.floor(session_bins[i]))
+    high = int(np.ceil(session_bins[i + 1]))
+    session_labels.append(f"{frag_names[i]}\n{low}–{high}")
 
 weekly_valid["session_bin"] = pd.qcut(
     weekly_valid["n_sessions"],
     q=3,
-    labels=["Low Frag", "Mid Frag", "High Frag"]
+    labels=session_labels,
+    duplicates="drop"
 )
+
+
+
+
+weekly_valid["volume_bin"] = pd.Categorical(
+    weekly_valid["volume_bin"],
+    categories=volume_labels,
+    ordered=True
+)
+
+weekly_valid["session_bin"] = pd.Categorical(
+    weekly_valid["session_bin"],
+    categories=session_labels,
+    ordered=True
+)
+
+
+
 
 
 ##### HEATMAP 1 — SAME WEEK MEDIAN #####
@@ -436,7 +493,7 @@ with col_ses_dist1:
         text_auto=".2f",
         aspect="auto",
         color_continuous_scale="Blues",
-        labels=dict(color="Median Time (sec)")
+        labels=dict(color="Median (s)")
     )
 
     fig_current.update_layout(
@@ -447,27 +504,28 @@ with col_ses_dist1:
 
     st.plotly_chart(fig_current, use_container_width=True)
 
-##### HEATMAP 2 — NEXT WEEK MEDIAN #####
+##### HEATMAP 2 — NEXT WEEK % CHANGE #####
 with col_ses_dist2:
-    pivot_next = weekly_valid.pivot_table(
-        values="next_week_median",
+    
+    pivot_delta = weekly_valid.pivot_table(
+        values="delta_pct_next_week",
         index="session_bin",
         columns="volume_bin",
         aggfunc="median"
     )
 
-    fig_next = px.imshow(
-        pivot_next,
+    fig_delta = px.imshow(
+        pivot_delta,
         text_auto=".2f",
         aspect="auto",
-        color_continuous_scale="Blues",
-        labels=dict(color="Next Week Median (sec)")
+        color_continuous_scale="Blues",  # Diverging scale
+        labels=dict(color="Δ% Next Week")
     )
 
-    fig_next.update_layout(
-        title="Median Time — Following Week",
+    fig_delta.update_layout(
+        title="Next Week Median Change (%)",
         xaxis_title="Weekly Volume (Quantiles)",
         yaxis_title="Session Fragmentation (Quantiles)"
     )
 
-    st.plotly_chart(fig_next, use_container_width=True)
+    st.plotly_chart(fig_delta, use_container_width=True)
