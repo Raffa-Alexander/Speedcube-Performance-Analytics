@@ -14,11 +14,15 @@ def linear_regression(session_stats, x, y):
     y_line = slope * x_line + intercept
     return x_line, y_line
 
-##### CONFIG #####
+##### CONSTANTS #####
 
 COLOR_BARS = "#3691E0"
 COLOR_SCATTERS = "#3691E0"
 COLOR_LINES = "#E17070"
+
+SESSION_MAX_GAP_SEC = 300 # Max time gap between two solves for them to be considered in the same session
+
+##### CONFIG #####
 
 st.set_page_config(page_title="Cube Performance Dashboard", layout="wide")
 st.title("Speedcube Performance Dashboard")
@@ -57,7 +61,7 @@ def load_data():
     df["weekday"] = df["date"].dt.day_name()
 
     df["time_diff"] = df["date"].diff().dt.total_seconds()
-    df["new_session"] = df["time_diff"] > 300
+    df["new_session"] = df["time_diff"] > SESSION_MAX_GAP_SEC
     df["session_id"] = df["new_session"].cumsum()
     
     return df
@@ -100,7 +104,6 @@ st.divider()
 window = st.sidebar.slider("Moving Average Window", 1, 200, 150)
 
 df["ma"] = df["time_sec"].rolling(window).mean()
-
 
 fig1 = px.scatter(
     df,
@@ -364,3 +367,107 @@ fig_prob = px.line(
 fig_prob.update_traces(line=dict(color=COLOR_LINES, width=3))
 fig_prob.update_layout(yaxis=dict(range=[0, 1]))
 st.plotly_chart(fig_prob, use_container_width=True)
+
+
+
+
+
+##### WEEKLY ANALYSIS #####
+
+st.header("Weekly Training Structure Heatmaps")
+col_ses_dist1, col_ses_dist2 = st.columns(2)
+
+# --- Create week column ---
+df["week"] = df["date"].dt.to_period("W").apply(lambda r: r.start_time)
+
+# --- Weekly aggregates ---
+weekly = df.groupby("week").agg(
+    weekly_volume=("time_sec", "count"),
+    weekly_median=("time_sec", "median"),
+)
+
+# --- Sessions per week ---
+sessions_per_week = (
+    df.groupby(["week", "session_id"])
+    .size()
+    .reset_index(name="session_size")
+    .groupby("week")
+    .size()
+)
+
+weekly["n_sessions"] = sessions_per_week
+weekly = weekly.fillna(0)
+
+# --- Next week median ---
+weekly["next_week_median"] = weekly["weekly_median"].shift(-1)
+
+# Remove weeks with zero solves
+weekly = weekly[weekly["weekly_volume"] > 0]
+
+# Remove last week (no next week)
+weekly_valid = weekly.dropna(subset=["next_week_median"]).copy()
+
+# --- Create Quantile Bins ---
+weekly_valid["volume_bin"] = pd.qcut(
+    weekly_valid["weekly_volume"],
+    q=4,
+    labels=["Q1 Low", "Q2 Mid-Low", "Q3 Mid-High", "Q4 High"]
+)
+
+weekly_valid["session_bin"] = pd.qcut(
+    weekly_valid["n_sessions"],
+    q=3,
+    labels=["Low Frag", "Mid Frag", "High Frag"]
+)
+
+
+##### HEATMAP 1 — SAME WEEK MEDIAN #####
+with col_ses_dist1:
+
+    pivot_current = weekly_valid.pivot_table(
+        values="weekly_median",
+        index="session_bin",
+        columns="volume_bin",
+        aggfunc="median"
+    )
+
+    fig_current = px.imshow(
+        pivot_current,
+        text_auto=".2f",
+        aspect="auto",
+        color_continuous_scale="Blues",
+        labels=dict(color="Median Time (sec)")
+    )
+
+    fig_current.update_layout(
+        title="Median Time — Same Week",
+        xaxis_title="Weekly Volume (Quantiles)",
+        yaxis_title="Session Fragmentation (Quantiles)"
+    )
+
+    st.plotly_chart(fig_current, use_container_width=True)
+
+##### HEATMAP 2 — NEXT WEEK MEDIAN #####
+with col_ses_dist2:
+    pivot_next = weekly_valid.pivot_table(
+        values="next_week_median",
+        index="session_bin",
+        columns="volume_bin",
+        aggfunc="median"
+    )
+
+    fig_next = px.imshow(
+        pivot_next,
+        text_auto=".2f",
+        aspect="auto",
+        color_continuous_scale="Blues",
+        labels=dict(color="Next Week Median (sec)")
+    )
+
+    fig_next.update_layout(
+        title="Median Time — Following Week",
+        xaxis_title="Weekly Volume (Quantiles)",
+        yaxis_title="Session Fragmentation (Quantiles)"
+    )
+
+    st.plotly_chart(fig_next, use_container_width=True)
