@@ -41,6 +41,7 @@ Performance may be influenced by the following categories:
 - Rolling training density
 
 ### 5.3 Session Structure
+Given a fixed weekly training volume, how does session distribution affect performance outcomes?
 - Session size
 - Position within session
 - Intra-session fatigue effects
@@ -70,6 +71,26 @@ The following visualization methods are used:
 - Bar plots
 
 Linear regression is used to estimate trend slopes and directional effects.
+
+### Weekly Training Structure Heatmaps
+To investigate how weekly training structure relates to performance, weeks and sessions are classified based on (REV):
+
+- Weekly training volume (total solves per week), divided into four quantile-based bins (Q1–Q4). This is done so that the analysis isn't only based on volume.
+- Session fragmentation (number of sessions per week), divided into three quantile-based categories: low, medium, and high fragmentation.
+
+Quantile-based binning ensures that each category contains a comparable number of weeks, improving statistical stability and avoiding sparsely populated cells in the heatmaps.
+
+Two heatmaps are generated:
+
+- **Same-week median heatmap**: Displays the median solve time within the same week as a function of weekly volume and session fragmentation.
+This reveals how training structure correlates with concurrent performance.
+
+- **Next-week median heatmap**: Displays the median solve time of the following week (T+1), conditioned on the structural characteristics of week T.
+This provides a short-term temporal analysis of whether weekly training structure is associated with subsequent performance changes.
+
+**Together, these visualizations allow evaluation of whether higher volume, increased session fragmentation, or their interaction is associated with improved immediate or short-term performance outcomes.**
+<p center><img width="850"  alt="image" src="https://github.com/user-attachments/assets/490fc895-deab-49d9-824e-213b6050cc04" /></p>
+
 
 # 8. Case Study: Personal Dataset
 it was applied to a dataset of 70,000+ speedcubing solves recorded since 2018.
