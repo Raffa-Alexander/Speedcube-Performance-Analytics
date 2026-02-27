@@ -1,6 +1,9 @@
+
 # Speedcube-Performance-Analytics
 
-<img align="right" width="120" src="https://github.com/user-attachments/assets/aac119db-4de2-4152-b8c7-c43ed2ea5f65">
+Could data science be a useful tool to plan an efficient training routine for speedcubers?
+
+<img align="right" width="150" src="https://github.com/user-attachments/assets/aac119db-4de2-4152-b8c7-c43ed2ea5f65">
 Since 2018 I have solved the Rubik's Cube over 70,000 times and kept tracking each result with a timing software.
 
 This project uses dynamic dashboards written in Python to analyze long-term performance trends, and statistical patterns in order to understand and improve solving efficiency.
