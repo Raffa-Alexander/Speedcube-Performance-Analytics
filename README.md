@@ -34,7 +34,6 @@ Anyone who wants to measure performance can dowonload this program and substitut
 
 
 5. Track probability of sub-8 performance
-6. Apply statistical methods to performance modeling
 
 # Technical Stack
 - Python
