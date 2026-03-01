@@ -2,17 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import numpy as np
+import data_processing as dp
 
-##### Utilities #####
 
-def linear_regression(session_stats, x, y):
-    '''
-    Generates a line showing tendency with a slope according to density of points
-    '''
-    slope, intercept = np.polyfit(x, y, 1)
-    x_line = np.linspace(x.min(), x.max(), 100)
-    y_line = slope * x_line + intercept
-    return x_line, y_line
 
 ##### CONSTANTS #####
 
@@ -49,24 +41,10 @@ def load_data():
     '''
     df = pd.read_csv("data.csv", sep=";", engine="python", encoding="utf-8-sig")
     df.columns = df.columns.str.strip().str.lower()
-
-    df["date"] = pd.to_datetime(df["date"], dayfirst=True)
-    df["time"] = df["time"].astype(str).apply(parse_time_mmss)
-    df["time_sec"] = df["time"].dt.total_seconds()
-    
-    df = df.sort_values("date")
-    
-    df["year"] = df["date"].dt.year
-    df["hour"] = df["date"].dt.hour
-    df["weekday"] = df["date"].dt.day_name()
-
-    df["time_diff"] = df["date"].diff().dt.total_seconds()
-    df["new_session"] = df["time_diff"] > SESSION_MAX_GAP_SEC
-    df["session_id"] = df["new_session"].cumsum()
-    
     return df
 
 df = load_data()
+df = dp.prepare_base_dataframe(df, SESSION_MAX_GAP_SEC)
 
 ##### SIDEBAR FILTER #####
 
@@ -98,7 +76,7 @@ st.divider()
 
 ######################
 ##### DASHBOARDS #####
-#####################
+######################
 
 ##### MOVING AVERAGE #####
 window = st.sidebar.slider("Moving Average Window", 1, 200, 150)
@@ -260,113 +238,159 @@ with col_years:
     st.plotly_chart(fig_year, use_container_width=True)
 
 
+
+
+
+
+
 ##### LINE: SESSION SIZE IMPACT #####
 
 st.subheader("Impact of Session Size on Performance")
 
 col_ses_mean, col_ses_prob = st.columns(2)
 
+# --- Sidebar Controls ---
+analysis_sub_x = st.sidebar.slider(
+    "Session Analysis Sub-X (seconds)",
+    5.0, 15.0, 8.0, step=0.1,
+    key="session_analysis_subx"
+)
+
+min_session_size = st.sidebar.slider(
+    "Minimum Session Size", 5, 100, 15
+)
+
+decay_factor = st.sidebar.slider(
+    "Recency Weight Decay (higher = faster decay)",
+    0.000, 0.02, 0.005, step=0.001
+)
+
+# --- Create Recency Weights ---
+df = df.copy()
+
+df["days_from_latest"] = (df["date"].max() - df["date"]).dt.days
+df["weight"] = np.exp(-decay_factor * df["days_from_latest"])
+
+# --- Weighted Session Stats ---
+def weighted_mean(x):
+    return np.average(x, weights=df.loc[x.index, "weight"])
+
+def weighted_subx(g):
+    return np.average(g["is_sub"], weights=g["weight"])
+
+session_stats = (
+    df.groupby("session_id")
+    .agg(
+        session_size=("time_sec", "count"),
+        session_mean=("time_sec", weighted_mean),
+        session_date=("date", "max")
+    )
+    .reset_index()
+)
+
+subx_per_session = (
+    df.assign(is_sub=lambda x: x["time_sec"] < analysis_sub_x)
+    .groupby("session_id")
+    .apply(weighted_subx)
+    .reset_index(name="session_subx_prob")
+)
+
+session_stats = session_stats.merge(subx_per_session, on="session_id")
+
+# Filter minimum session size
+session_stats = session_stats[session_stats["session_size"] >= min_session_size]
+
+# Add recency info per session
+session_stats["days_from_latest"] = (
+    (df["date"].max() - session_stats["session_date"]).dt.days
+)
+
+# -------------------------
+# SCATTER 1 – Mean Time
+# -------------------------
+
 with col_ses_mean:
-    ##### SESSION SIZE PLOTS #####
-
-    analysis_sub_x = st.sidebar.slider(
-        "Session Analysis Sub-X (seconds)",
-        5.0, 15.0, 8.0, step=0.1,
-        key="session_analysis_subx"
-    )
-
-    session_stats = (
-        df.groupby("session_id")
-        .agg(
-            session_size=("time_sec", "count"),
-            session_mean=("time_sec", "mean"),
-        )
-        .reset_index()
-    )
-
-    subx_per_session = (
-        df.assign(is_sub=lambda x: x["time_sec"] < analysis_sub_x)
-        .groupby("session_id")["is_sub"]
-        .mean()
-        .reset_index(name="session_subx_prob")
-    )
-    session_stats = session_stats.merge(subx_per_session, on="session_id")
-    min_session_size = st.sidebar.slider("Minimum Session Size", 5, 100, 15)
-    session_stats = session_stats[session_stats["session_size"] >= min_session_size]
 
     fig_session_mean = px.scatter(
         session_stats,
         x="session_size",
         y="session_mean",
-        title="Session Size vs Mean Time",
+        color="days_from_latest",
+        color_continuous_scale="Viridis_r",
+        title="Session Size vs Weighted Mean Time",
         labels={
             "session_size": "Session Size",
-            "session_mean": "Mean Time (s)"
+            "session_mean": "Weighted Mean Time (s)",
+            "days_from_latest": "Days Ago"
         }
     )
-    fig_session_mean.update_traces(marker=dict(color=COLOR_SCATTERS))
 
+    # Weighted Linear Regression
     if len(session_stats) > 1:
-        x_line, y_line = linear_regression(session_stats, session_stats["session_size"], session_stats["session_mean"])
+        x = session_stats["session_size"].values
+        y = session_stats["session_mean"].values
+        w = np.exp(-decay_factor * session_stats["days_from_latest"].values)
+
+        coef = np.polyfit(x, y, 1, w=w)
+        x_line = np.linspace(x.min(), x.max(), 100)
+        y_line = coef[0] * x_line + coef[1]
+
         fig_session_mean.add_scatter(
             x=x_line,
             y=y_line,
             mode="lines",
-            name="Linear Trend",
+            name="Weighted Trend",
             line=dict(color=COLOR_LINES, width=3)
         )
+
     st.plotly_chart(fig_session_mean, use_container_width=True)
 
+# -------------------------
+# SCATTER 2 – Sub-X Probability
+# -------------------------
 
 with col_ses_prob:
-    ##### SESSION SIZE PROBABILITY PLOTS #####
 
     fig_session_subx = px.scatter(
         session_stats,
         x="session_size",
         y="session_subx_prob",
-        title=f"Session Size vs Sub-{analysis_sub_x}s Probability",
+        color="days_from_latest",
+        color_continuous_scale="Viridis_r",
+        title=f"Session Size vs Weighted Sub-{analysis_sub_x}s Probability",
         labels={
             "session_size": "Session Size",
-            "session_subx_prob": "Probability"
+            "session_subx_prob": "Weighted Probability",
+            "days_from_latest": "Days Ago"
         }
     )
-    fig_session_subx.update_traces(marker=dict(color=COLOR_SCATTERS))
+
     fig_session_subx.update_layout(
         yaxis=dict(range=[0, 1])
     )
 
+    # Weighted Linear Regression
     if len(session_stats) > 1:
-        x_line, y_line = linear_regression(session_stats, session_stats["session_size"], session_stats["session_subx_prob"])
+        x = session_stats["session_size"].values
+        y = session_stats["session_subx_prob"].values
+        w = np.exp(-decay_factor * session_stats["days_from_latest"].values)
+
+        coef = np.polyfit(x, y, 1, w=w)
+        x_line = np.linspace(x.min(), x.max(), 100)
+        y_line = coef[0] * x_line + coef[1]
+
         fig_session_subx.add_scatter(
             x=x_line,
             y=y_line,
             mode="lines",
-            name="Linear Trend",
+            name="Weighted Trend",
             line=dict(color=COLOR_LINES, width=3)
         )
+
     st.plotly_chart(fig_session_subx, use_container_width=True)
 
 
-##### LINE: SUB-X PROBABILITY OVER TIME #####
 
-st.subheader("Rolling Probability of Sub-X")
-
-sub_x_value = st.sidebar.slider("Select X (seconds)", 5.0, 15.0, 8.0, step=0.1)
-df["is_sub_x"] = df["time_sec"] < sub_x_value
-prob_window = st.sidebar.slider("Probability Window", 50, 2000, 500) # rolling probability
-df["sub_x_prob"] = df["is_sub_x"].rolling(prob_window).mean()
-
-fig_prob = px.line(
-    df,
-    x="date",
-    y="sub_x_prob",
-    title=f"Rolling Probability of Sub-{sub_x_value}s",
-    labels={"sub_x_prob": "Probability", "date": "Date"}
-)
-fig_prob.update_traces(line=dict(color=COLOR_LINES, width=3))
-fig_prob.update_layout(yaxis=dict(range=[0, 1]))
-st.plotly_chart(fig_prob, use_container_width=True)
 
 
 
@@ -377,44 +401,10 @@ st.plotly_chart(fig_prob, use_container_width=True)
 st.header("Weekly Training Structure Heatmaps")
 col_ses_dist1, col_ses_dist2 = st.columns(2)
 
-# --- Create week column ---
-df["week"] = df["date"].dt.to_period("W").apply(lambda r: r.start_time)
+df, weekly, weekly_valid = dp.week_column(df)
 
-# --- Weekly aggregates ---
-weekly = df.groupby("week").agg(
-    weekly_volume=("time_sec", "count"),
-    weekly_median=("time_sec", "median"),
-)
-
-# --- Sessions per week ---
-sessions_per_week = (
-    df.groupby(["week", "session_id"])
-    .size()
-    .reset_index(name="session_size")
-    .groupby("week")
-    .size()
-)
-
-weekly["n_sessions"] = sessions_per_week
-weekly = weekly.fillna(0)
-
-# --- Next week median ---
-weekly["next_week_median"] = weekly["weekly_median"].shift(-1)
-
-# Remove weeks with zero solves
-weekly = weekly[weekly["weekly_volume"] > 0]
-
-# Remove last week (no next week)
-weekly_valid = weekly.dropna(subset=["next_week_median"]).copy()
-
-# --- Percentage improvement (Next Week vs Current Week) ---
-weekly_valid["delta_pct_next_week"] = (
-    (weekly_valid["next_week_median"] - weekly_valid["weekly_median"])
-    / weekly_valid["weekly_median"]
-) * 100
 
 # --- Create Quantile Bins with Explicit Ranges ---
-
 # Volume quantiles
 volume_cuts, volume_bins = pd.qcut(
     weekly_valid["weekly_volume"],
@@ -444,6 +434,9 @@ session_cuts, session_bins = pd.qcut(
     duplicates="drop"
 )
 
+
+
+
 session_labels = []
 frag_names = ["Low Frag", "Mid Frag", "High Frag"]
 
@@ -459,9 +452,6 @@ weekly_valid["session_bin"] = pd.qcut(
     duplicates="drop"
 )
 
-
-
-
 weekly_valid["volume_bin"] = pd.Categorical(
     weekly_valid["volume_bin"],
     categories=volume_labels,
@@ -473,10 +463,6 @@ weekly_valid["session_bin"] = pd.Categorical(
     categories=session_labels,
     ordered=True
 )
-
-
-
-
 
 ##### HEATMAP 1 — SAME WEEK MEDIAN #####
 with col_ses_dist1:
@@ -508,7 +494,7 @@ with col_ses_dist1:
 with col_ses_dist2:
     
     pivot_delta = weekly_valid.pivot_table(
-        values="delta_pct_next_week",
+        values="delta_pct_current_week",
         index="session_bin",
         columns="volume_bin",
         aggfunc="median"
@@ -519,13 +505,34 @@ with col_ses_dist2:
         text_auto=".2f",
         aspect="auto",
         color_continuous_scale="Blues",  # Diverging scale
-        labels=dict(color="Δ% Next Week")
+        labels=dict(color="Δ% vs Previous Week")
     )
 
     fig_delta.update_layout(
-        title="Next Week Median Change (%)",
+        title="Improvement From Previous Week (%)",
         xaxis_title="Weekly Volume (Quantiles)",
         yaxis_title="Session Fragmentation (Quantiles)"
     )
 
     st.plotly_chart(fig_delta, use_container_width=True)
+
+
+##### LINE: SUB-X PROBABILITY OVER TIME #####
+
+st.subheader("Rolling Probability of Sub-X")
+
+sub_x_value = st.sidebar.slider("Select X (seconds)", 5.0, 15.0, 8.0, step=0.1)
+df["is_sub_x"] = df["time_sec"] < sub_x_value
+prob_window = st.sidebar.slider("Probability Window", 50, 2000, 500) # rolling probability
+df["sub_x_prob"] = df["is_sub_x"].rolling(prob_window).mean()
+
+fig_prob = px.line(
+    df,
+    x="date",
+    y="sub_x_prob",
+    title=f"Rolling Probability of Sub-{sub_x_value}s",
+    labels={"sub_x_prob": "Probability", "date": "Date"}
+)
+fig_prob.update_traces(line=dict(color=COLOR_LINES, width=3))
+fig_prob.update_layout(yaxis=dict(range=[0, 1]))
+st.plotly_chart(fig_prob, use_container_width=True)
