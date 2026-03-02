@@ -4,8 +4,6 @@ import plotly.express as px
 import numpy as np
 import data_processing as dp
 
-
-
 ##### CONSTANTS #####
 
 COLOR_BARS = "#3691E0"
@@ -237,33 +235,15 @@ with col_years:
 
     st.plotly_chart(fig_year, use_container_width=True)
 
-
-
-
-
-
-
 ##### LINE: SESSION SIZE IMPACT #####
 
 st.subheader("Impact of Session Size on Performance")
-
 col_ses_mean, col_ses_prob = st.columns(2)
 
 # --- Sidebar Controls ---
-analysis_sub_x = st.sidebar.slider(
-    "Session Analysis Sub-X (seconds)",
-    5.0, 15.0, 8.0, step=0.1,
-    key="session_analysis_subx"
-)
-
-min_session_size = st.sidebar.slider(
-    "Minimum Session Size", 5, 100, 15
-)
-
-decay_factor = st.sidebar.slider(
-    "Recency Weight Decay (higher = faster decay)",
-    0.000, 0.02, 0.005, step=0.001
-)
+analysis_sub_x = st.sidebar.slider("Session Analysis Sub-X (seconds)", 5.0, 15.0, 8.0, step=0.1, key="session_analysis_subx")
+min_session_size = st.sidebar.slider( "Minimum Session Size", 5, 100, 15)
+decay_factor = st.sidebar.slider( "Recency Weight Decay (higher = faster decay)", 0.000, 0.02, 0.005, step=0.001)
 
 # --- Create Recency Weights ---
 df = df.copy()
@@ -296,14 +276,8 @@ subx_per_session = (
 )
 
 session_stats = session_stats.merge(subx_per_session, on="session_id")
-
-# Filter minimum session size
 session_stats = session_stats[session_stats["session_size"] >= min_session_size]
-
-# Add recency info per session
-session_stats["days_from_latest"] = (
-    (df["date"].max() - session_stats["session_date"]).dt.days
-)
+session_stats["days_from_latest"] = ( (df["date"].max() - session_stats["session_date"]).dt.days)
 
 # -------------------------
 # SCATTER 1 – Mean Time
@@ -326,15 +300,14 @@ with col_ses_mean:
     )
 
     # Weighted Linear Regression
-    if len(session_stats) > 1:
-        x = session_stats["session_size"].values
-        y = session_stats["session_mean"].values
-        w = np.exp(-decay_factor * session_stats["days_from_latest"].values)
-
-        coef = np.polyfit(x, y, 1, w=w)
-        x_line = np.linspace(x.min(), x.max(), 100)
-        y_line = coef[0] * x_line + coef[1]
-
+    x_line, y_line = dp.weighted_linear_regression(
+        session_stats,
+        x_col="session_size",
+        y_col="session_mean",
+        time_col="days_from_latest",
+        decay_factor=decay_factor
+    )
+    if x_line is not None:
         fig_session_mean.add_scatter(
             x=x_line,
             y=y_line,
@@ -342,7 +315,6 @@ with col_ses_mean:
             name="Weighted Trend",
             line=dict(color=COLOR_LINES, width=3)
         )
-
     st.plotly_chart(fig_session_mean, use_container_width=True)
 
 # -------------------------
@@ -365,20 +337,17 @@ with col_ses_prob:
         }
     )
 
-    fig_session_subx.update_layout(
-        yaxis=dict(range=[0, 1])
+    fig_session_subx.update_layout(yaxis=dict(range=[0, 1]))
+
+    x_line, y_line = dp.weighted_linear_regression(
+        session_stats,
+        x_col="session_size",
+        y_col="session_subx_prob",
+        time_col="days_from_latest",
+        decay_factor=decay_factor
     )
 
-    # Weighted Linear Regression
-    if len(session_stats) > 1:
-        x = session_stats["session_size"].values
-        y = session_stats["session_subx_prob"].values
-        w = np.exp(-decay_factor * session_stats["days_from_latest"].values)
-
-        coef = np.polyfit(x, y, 1, w=w)
-        x_line = np.linspace(x.min(), x.max(), 100)
-        y_line = coef[0] * x_line + coef[1]
-
+    if x_line is not None:
         fig_session_subx.add_scatter(
             x=x_line,
             y=y_line,
@@ -390,79 +359,14 @@ with col_ses_prob:
     st.plotly_chart(fig_session_subx, use_container_width=True)
 
 
-
-
-
-
-
-
 ##### WEEKLY ANALYSIS #####
 
 st.header("Weekly Training Structure Heatmaps")
 col_ses_dist1, col_ses_dist2 = st.columns(2)
 
 df, weekly, weekly_valid = dp.week_column(df)
+weekly_valid = dp.add_weekly_structure_bins(weekly_valid)
 
-
-# --- Create Quantile Bins with Explicit Ranges ---
-# Volume quantiles
-volume_cuts, volume_bins = pd.qcut(
-    weekly_valid["weekly_volume"],
-    q=4,
-    retbins=True,
-    duplicates="drop"
-)
-
-volume_labels = []
-for i in range(len(volume_bins) - 1):
-    low = int(np.floor(volume_bins[i]))
-    high = int(np.ceil(volume_bins[i + 1]))
-    volume_labels.append(f"Q{i+1}\n{low}–{high}")
-
-weekly_valid["volume_bin"] = pd.qcut(
-    weekly_valid["weekly_volume"],
-    q=4,
-    labels=volume_labels,
-    duplicates="drop"
-)
-
-# Session fragmentation quantiles
-session_cuts, session_bins = pd.qcut(
-    weekly_valid["n_sessions"],
-    q=3,
-    retbins=True,
-    duplicates="drop"
-)
-
-
-
-
-session_labels = []
-frag_names = ["Low Frag", "Mid Frag", "High Frag"]
-
-for i in range(len(session_bins) - 1):
-    low = int(np.floor(session_bins[i]))
-    high = int(np.ceil(session_bins[i + 1]))
-    session_labels.append(f"{frag_names[i]}\n{low}–{high}")
-
-weekly_valid["session_bin"] = pd.qcut(
-    weekly_valid["n_sessions"],
-    q=3,
-    labels=session_labels,
-    duplicates="drop"
-)
-
-weekly_valid["volume_bin"] = pd.Categorical(
-    weekly_valid["volume_bin"],
-    categories=volume_labels,
-    ordered=True
-)
-
-weekly_valid["session_bin"] = pd.Categorical(
-    weekly_valid["session_bin"],
-    categories=session_labels,
-    ordered=True
-)
 
 ##### HEATMAP 1 — SAME WEEK MEDIAN #####
 with col_ses_dist1:

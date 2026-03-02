@@ -67,6 +67,101 @@ def week_column(df):
         / weekly_valid["prev_week_median"]
     ) * 100
     return df, weekly, weekly_valid
+
+def add_weekly_structure_bins(weekly_valid: pd.DataFrame, volume_q: int=4, session_q: int=3) -> pd.DataFrame:
+    
+    weekly_valid = weekly_valid.copy()
+
+    # ----- Volume Quantiles -----
+    _, volume_bins = pd.qcut(
+        weekly_valid["weekly_volume"],
+        q=volume_q,
+        retbins=True,
+        duplicates="drop"
+    )
+
+    volume_labels = []
+    for i in range(len(volume_bins) - 1):
+        low = int(np.floor(volume_bins[i]))
+        high = int(np.ceil(volume_bins[i + 1]))
+        volume_labels.append(f"Q{i+1}\n{low}–{high}")
+
+    weekly_valid["volume_bin"] = pd.qcut(
+        weekly_valid["weekly_volume"],
+        q=volume_q,
+        labels=volume_labels,
+        duplicates="drop"
+    )
+
+    # ----- Session Fragmentation Quantiles -----
+    _, session_bins = pd.qcut(
+        weekly_valid["n_sessions"],
+        q=session_q,
+        retbins=True,
+        duplicates="drop"
+    )
+
+    frag_names = ["Low Frag", "Mid Frag", "High Frag"]
+    session_labels = []
+
+    for i in range(len(session_bins) - 1):
+        low = int(np.floor(session_bins[i]))
+        high = int(np.ceil(session_bins[i + 1]))
+        session_labels.append(f"{frag_names[i]}\n{low}–{high}")
+
+    weekly_valid["session_bin"] = pd.qcut(
+        weekly_valid["n_sessions"],
+        q=session_q,
+        labels=session_labels,
+        duplicates="drop"
+    )
+
+    weekly_valid["volume_bin"] = pd.Categorical(
+        weekly_valid["volume_bin"],
+        categories=volume_labels,
+        ordered=True
+    )
+
+    weekly_valid["session_bin"] = pd.Categorical(
+        weekly_valid["session_bin"],
+        categories=session_labels,
+        ordered=True
+    )
+
+    return weekly_valid
+
+def weighted_linear_regression(
+    df: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    time_col: str,
+    decay_factor: float,
+    n_points: int = 100
+) -> tuple[np.ndarray, np.ndarray] | tuple[None, None]:
+    """
+    Computes weighted linear regression using exponential time decay.
+
+    Returns:
+        x_line, y_line for plotting
+        or (None, None) if not enough data
+    """
+
+    if len(df) <= 1:
+        return None, None
+
+    x = df[x_col].values
+    y = df[y_col].values
+    w = np.exp(-decay_factor * df[time_col].values)
+
+    coef = np.polyfit(x, y, 1, w=w)
+
+    x_line = np.linspace(x.min(), x.max(), n_points)
+    y_line = coef[0] * x_line + coef[1]
+
+    return x_line, y_line
+
+
+
     
 
 def compute_session_stats(df):
