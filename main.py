@@ -17,19 +17,6 @@ SESSION_MAX_GAP_SEC = 300 # Max time gap between two solves for them to be consi
 st.set_page_config(page_title="Cube Performance Dashboard", layout="wide")
 st.title("Speedcube Performance Dashboard")
 
-
-def parse_time_mmss(s):
-    """Converts strings mm:ss.xx to pd.Timedelta"""
-    if pd.isna(s):
-        return pd.Timedelta(0)
-
-    try:
-        min_part, sec_part = s.split(":")
-        total_seconds = int(min_part) * 60 + float(sec_part)
-        return pd.Timedelta(seconds=total_seconds)
-    except:
-        return pd.Timedelta(0)
-
 ##### LOAD DATA #####
 
 @st.cache_data
@@ -62,13 +49,15 @@ if len(date_range) == 2:
     df = df.loc[mask]
 
 ##### METRICS #####
+best_ao5 = dp.compute_best_ao5_wca(df)
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 col1.metric("Total Solves", len(df))
 col2.metric("Mean Time", f"{df['time_sec'].mean():.2f} s")
 col3.metric("Best Time", f"{df['time_sec'].min():.2f} s")
-col4.metric("Standard Deviation", f"{df['time_sec'].std():.2f}")
+col4.metric("Best Average of 5", f"{best_ao5:.2f} s" if best_ao5 is not None else "—")
+col5.metric("Standard Deviation", f"{df['time_sec'].std():.2f}")
 
 st.divider()
 

@@ -13,8 +13,6 @@ def parse_time_mmss(s):
         return pd.Timedelta(seconds=total_seconds)
     except:
         return pd.Timedelta(0)
-    
-
 
 def prepare_base_dataframe(df, SESSION_MAX_GAP_SEC):
     df["date"] = pd.to_datetime(df["date"], dayfirst=True)
@@ -33,15 +31,36 @@ def prepare_base_dataframe(df, SESSION_MAX_GAP_SEC):
     return df
 
 
+def compute_best_ao5_wca(df: pd.DataFrame) -> float | None:
+    """
+    Computes the best WCA-style Average of 5 (Ao5):
+    - 5 consecutive solves
+    - Must belong to the same session
+    - Best and worst times removed
+    - Average of remaining 3
+    
+    Returns:
+        Best Ao5 value (float) or None if not enough data
+    """
 
-def add_session_ids(df, max_gap_minutes):
-    ...
-
-def add_week_column(df):
-    ...
-
-def add_recency_weights(df, decay_factor):
-    ...
+    if "session_id" not in df.columns:
+        raise ValueError("DataFrame must contain 'session_id' column.")
+    best_ao5 = np.inf
+    df = df.sort_values("date").reset_index(drop=True)
+    for session_id, session_df in df.groupby("session_id"):
+        times = session_df["time_sec"].values
+        if len(times) < 5:
+            continue
+        for i in range(len(times) - 4):
+            window = times[i:i+5]
+            sorted_window = np.sort(window)
+            trimmed = sorted_window[1:-1]
+            ao5 = trimmed.mean()
+            if ao5 < best_ao5:
+                best_ao5 = ao5
+    if best_ao5 == np.inf:
+        return None
+    return best_ao5
 
 def week_column(df):
     '''
