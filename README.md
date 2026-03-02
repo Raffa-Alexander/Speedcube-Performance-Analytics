@@ -1,5 +1,5 @@
 
-# Speedcube-Performance-Analytics
+# Data-Driven-Speedcubing-Performance-Optimization
 
 Could data science be a useful tool to plan an efficient training routine for speedcubers?
 
@@ -41,6 +41,23 @@ Anyone who wants to measure performance can dowonload this program and substitut
 - Plotly (interactive visualization)
 - Streamlit (dashboard interface)
 - Timing software: Prisma Puzzle Timer
+
+# Key Insights
+1. **Training Volume and Long-Term Improvement**
+
+Annual solve volume shows a strong positive association with performance improvement over time. Years with higher solve counts consistently correspond to lower average solve times, suggesting that cumulative practice volume is a primary driver of long-term performance gains.
+
+2. **Session Size and Performance**
+
+Scatter analysis using exponentially weighted recent sessions indicates a positive relationship between session size and session performance. Linear regression suggests that longer sessions are associated with improved average solve times within the session.
+
+3. **Time-of-Day and Weekly Patterns**
+
+Heatmap analysis of day-of-week and time-of-day shows no clear or consistent pattern linking performance to specific time windows. Performance appears to be largely independent of schedule timing.
+
+4. **Weekly Session Distribution Strategy**
+
+For a fixed number of weekly solves, performance improvement is associated with fewer, larger sessions rather than many smaller sessions. Quantile-based heatmap segmentation suggests that distributing the same training volume across fewer sessions may be more beneficial for time reduction.
 
 # Why This Project?
 This project combines:
