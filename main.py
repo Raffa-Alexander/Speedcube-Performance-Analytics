@@ -167,7 +167,7 @@ with col_heatmap:
 
     fig_heat = px.imshow(
         pivot_table,
-        color_continuous_scale="Blues",#"RdYlGn_r",
+        color_continuous_scale="Viridis_r",
         labels=dict(color="Average Time (s)"),
         aspect="auto",
         title="Heatmap",
@@ -371,7 +371,7 @@ with col_ses_dist1:
         pivot_current,
         text_auto=".2f",
         aspect="auto",
-        color_continuous_scale="Blues",
+        color_continuous_scale="Viridis_r",
         labels=dict(color="Median (s)")
     )
 
@@ -397,7 +397,7 @@ with col_ses_dist2:
         pivot_delta,
         text_auto=".2f",
         aspect="auto",
-        color_continuous_scale="Blues",  # Diverging scale
+        color_continuous_scale="Viridis_r",
         labels=dict(color="Δ% vs Previous Week")
     )
 
