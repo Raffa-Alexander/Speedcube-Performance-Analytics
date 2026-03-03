@@ -29,9 +29,7 @@ Anyone who wants to measure performance can dowonload this program and substitut
 <p align="center"><img width="1000" alt="image" src="https://github.com/user-attachments/assets/9c168e59-0d4f-4bb2-93f3-67d15a82f7b3" /></p>
 
    d) Weekly sessions distribution: "For a certain amount of solves in a week, is it better to distribute it into several sessions or do fewer larger ones?
-<p align="center"><img width="1000" alt="image" src="https://github.com/user-attachments/assets/10a01569-0734-46d3-915f-b3e8560aebe6" /></p>
-
-
+<p align="center"><img width="1000" alt="image" src="https://github.com/user-attachments/assets/94fe761b-4263-43c1-a8e2-21cf2fc55f44" /></p>
 
 5. Track probability of sub-8 performance
 
