@@ -9,6 +9,7 @@ import data_processing as dp
 COLOR_BARS = "#3691E0"
 COLOR_SCATTERS = "#3691E0"
 COLOR_LINES = "#E17070"
+HEATMAP_COLOR_PATTERN = "Viridis_r"
 
 SESSION_MAX_GAP_SEC = 300 # Max time gap between two solves for them to be considered in the same session
 
@@ -167,7 +168,7 @@ with col_heatmap:
 
     fig_heat = px.imshow(
         pivot_table,
-        color_continuous_scale="Viridis_r",
+        color_continuous_scale=HEATMAP_COLOR_PATTERN,
         labels=dict(color="Average Time (s)"),
         aspect="auto",
         title="Heatmap",
@@ -371,7 +372,7 @@ with col_ses_dist1:
         pivot_current,
         text_auto=".2f",
         aspect="auto",
-        color_continuous_scale="Viridis_r",
+        color_continuous_scale=HEATMAP_COLOR_PATTERN,
         labels=dict(color="Median (s)")
     )
 
@@ -397,8 +398,8 @@ with col_ses_dist2:
         pivot_delta,
         text_auto=".2f",
         aspect="auto",
-        color_continuous_scale="Viridis_r",
-        labels=dict(color="Δ% vs Previous Week")
+        color_continuous_scale=HEATMAP_COLOR_PATTERN,
+        labels=dict(color="Δ%")
     )
 
     fig_delta.update_layout(
