@@ -290,7 +290,7 @@ with col_ses_mean:
     )
 
     # Weighted Linear Regression
-    x_line, y_line = dp.weighted_linear_regression(
+    x_line, y_line, coef = dp.weighted_linear_regression(
         session_stats,
         x_col="session_size",
         y_col="session_mean",
@@ -306,6 +306,7 @@ with col_ses_mean:
             line=dict(color=COLOR_LINES, width=3)
         )
     st.plotly_chart(fig_session_mean, use_container_width=True)
+    st.caption(f"Trend slope: {coef:.2}")
 
 # -------------------------
 # SCATTER 2 – Sub-X Probability
@@ -329,7 +330,7 @@ with col_ses_prob:
 
     fig_session_subx.update_layout(yaxis=dict(range=[0, 1]))
 
-    x_line, y_line = dp.weighted_linear_regression(
+    x_line, y_line, coef = dp.weighted_linear_regression(
         session_stats,
         x_col="session_size",
         y_col="session_subx_prob",
@@ -347,6 +348,7 @@ with col_ses_prob:
         )
 
     st.plotly_chart(fig_session_subx, use_container_width=True)
+    st.caption(f"Trend slope: {coef:.2}")
 
 
 ##### WEEKLY ANALYSIS #####

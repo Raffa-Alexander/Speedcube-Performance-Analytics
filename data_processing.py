@@ -177,7 +177,7 @@ def weighted_linear_regression(
     x_line = np.linspace(x.min(), x.max(), n_points)
     y_line = coef[0] * x_line + coef[1]
 
-    return x_line, y_line
+    return x_line, y_line, coef[0]
 
 
 
