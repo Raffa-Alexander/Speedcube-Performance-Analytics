@@ -42,9 +42,13 @@ Performance may be influenced by the following categories:
 
 ### 5.3 Session Structure
 Given a fixed weekly training volume, how does session distribution affect performance outcomes?
-- Session size
-- Position within session
-- Intra-session fatigue effects
+##### a) Session size
+$$
+\text{session mean time}=a\cdot \text{session size}+b
+$$
+
+##### b) Position within session
+##### c) Intra-session fatigue effects
   
 
 # 6. Derived Features
