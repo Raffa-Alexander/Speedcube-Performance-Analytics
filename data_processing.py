@@ -16,8 +16,7 @@ def parse_time_mmss(s):
 
 def prepare_base_dataframe(df, SESSION_MAX_GAP_SEC):
     df["date"] = pd.to_datetime(df["date"], dayfirst=True)
-    df["time"] = df["time"].astype(str).apply(parse_time_mmss)
-    df["time_sec"] = df["time"].dt.total_seconds()
+    df["time_sec"] = df["time"].astype(str).str.split(":").apply(lambda x: float(x[0]) * 60 + float(x[1]))
     
     df = df.sort_values("date")
     
@@ -28,6 +27,9 @@ def prepare_base_dataframe(df, SESSION_MAX_GAP_SEC):
     df["time_diff"] = df["date"].diff().dt.total_seconds()
     df["new_session"] = df["time_diff"] > SESSION_MAX_GAP_SEC
     df["session_id"] = df["new_session"].cumsum()
+
+    df["days_from_latest"] = (df["date"].max() - df["date"]).dt.days
+    
     return df
 
 
@@ -68,23 +70,25 @@ def week_column(df):
     '''
     df["week"] = df["date"].dt.to_period("W").apply(lambda r: r.start_time)
 
-    weekly = df.groupby("week").agg(weekly_volume=("time_sec", "count"), weekly_median=("time_sec", "median"),)
-
-    sessions_per_week = (
-        df.groupby(["week", "session_id"])
-        .size()
-        .reset_index(name="session_size")
-        .groupby("week")
-        .size()
-    )
+    weekly = df.groupby("week").agg(weekly_volume=("z_score", "count"), weekly_z_mean=("z_score", "mean"),)
+    sessions_per_week = ( df.groupby(["week", "session_id"]).size().reset_index(name="session_size").groupby("week").size())
     weekly["n_sessions"] = sessions_per_week
     weekly = weekly.fillna(0)
-    weekly["prev_week_median"] = weekly["weekly_median"].shift(1)
-    weekly_valid = weekly.dropna(subset=["prev_week_median"]).copy() 
-    weekly_valid["delta_pct_current_week"] = (
-        (weekly_valid["prev_week_median"] - weekly_valid["weekly_median"])
-        / weekly_valid["prev_week_median"]
-    ) * 100
+    weekly["prev_week_z_mean"] = weekly["weekly_z_mean"].shift(1)
+    weekly["next_week_z_mean"] = weekly["weekly_z_mean"].shift(-1)
+
+    weekly_valid = weekly.dropna(subset=["prev_week_z_mean"]).copy() 
+    weekly_valid = weekly.dropna(subset=["next_week_z_mean"]).copy()
+    weekly_valid["delta_pct_next_week"] = ((weekly_valid["next_week_z_mean"] - weekly_valid["weekly_z_mean"])/ weekly_valid["weekly_z_mean"]) * 100
+
+    # Difference between current week and next week
+    # Negative = improvement
+    # Positive = worse performance
+    weekly_valid["delta_z_next_week"] = (
+        weekly_valid["next_week_z_mean"]
+        - weekly_valid["weekly_z_mean"]
+    )
+
     return df, weekly, weekly_valid
 
 def add_weekly_structure_bins(weekly_valid: pd.DataFrame, volume_q: int=4, session_q: int=3) -> pd.DataFrame:
